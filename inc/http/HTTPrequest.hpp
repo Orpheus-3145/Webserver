@@ -8,7 +8,7 @@
 #include "Config.hpp"
 #include "RequestValidate.hpp"
 
-#define MAX_HEADER_SIZE	8192
+#define HTTP_MAX_HEADER_SIZE	8192
 
 typedef enum HTTPreqState_f
 {

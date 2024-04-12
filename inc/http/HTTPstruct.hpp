@@ -11,14 +11,14 @@
 #include "Exceptions.hpp"
 
 #define LOCALHOST			std::string("localhost")
-#define HTTP_DEF_PORT		std::string("8080")			// default port, 80 for sudo, 8080 for users
-#define HTTP_DEF_HOST		LOCALHOST + HTTP_DEF_PORT	// localhost:8080
-#define HTTP_DEF_SCHEME		std::string("HTTP")			// http scheme
-#define HTTP_TERM			std::string("\r\n\r\n")		// http terminator
-#define HTTP_NL				std::string("\r\n")			// http delimiter
-#define HTTP_SP				std::string(" ")			// shortcut for space
+#define HTTP_DEF_PORT		std::string("8080")				// default port, 80 for sudo, 8080 for users
+#define HTTP_DEF_HOST		LOCALHOST + ":" + HTTP_DEF_PORT	// localhost:8080
+#define HTTP_DEF_SCHEME		std::string("HTTP")				// http scheme
+#define HTTP_TERM			std::string("\r\n\r\n")			// http terminator
+#define HTTP_NL				std::string("\r\n")				// http delimiter
+#define HTTP_SP				std::string(" ")				// shortcut for space
 #define HTTP_DEF_VERSION	HTTP_DEF_SCHEME + std::string("/1.1")
-#define HTTP_BUF_SIZE 		8192						// 8K
+#define HTTP_BUF_SIZE 		8192							// 8K
 #define HTTP_MAX_TIMEOUT	10
 
 // request headers

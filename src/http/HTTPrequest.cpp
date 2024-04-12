@@ -229,21 +229,17 @@ bool	HTTPrequest::isDoneReadingHead( void ) const noexcept
 
 bool	HTTPrequest::isDoneReadingBody( void ) const noexcept
 {
-	return(isFileUpload() and (this->_state > HTTP_REQ_BODY_READING));
+	return(isFileUpload() and (this->_state == HTTP_REQ_DONE));
 }
 
 bool	HTTPrequest::hasBodyToRead( void ) const noexcept
 {
-	try {
-		if (isDoneReadingBody())
-			return (false);
-		else if (isChunked() and ((this->_tmpBody.find(HTTP_TERM) == std::string::npos)))
-			return (true);
-		else if (isFileUpload() and (this->_tmpBody.size() < this->_contentLength))
-			return (true);
-	}
-	catch(const std::exception& e) {}
-	return (false);
+	if (isDoneReadingBody())
+		return (false);
+	else if (isChunked())
+		return (this->_tmpBody.find(HTTP_TERM) == std::string::npos)
+	else
+		return (this->_tmpBody.size() < this->_contentLength)
 }
 
 void	HTTPrequest::_setHead( std::string const& header )
@@ -332,27 +328,28 @@ void	HTTPrequest::_setBody( std::string const& body )
 
 void	HTTPrequest::_readHead( void )
 {
-	char				buffer[HTTP_BUF_SIZE];
-	ssize_t				charsRead = -1;
+	char	buffer[HTTP_MAX_HEADER_SIZE];
+	ssize_t	charsRead = -1;
+	size_t	endReq = 0;
 
-	std::fill(buffer, buffer + HTTP_BUF_SIZE, 0);
-	charsRead = recv(this->_socket, buffer, HTTP_BUF_SIZE, 0);
+	std::fill(buffer, buffer + HTTP_MAX_HEADER_SIZE, 0);
+	charsRead = recv(this->_socket, buffer, HTTP_MAX_HEADER_SIZE, 0);
 	if (charsRead < 0)
 		throw(ServerException({"unavailable socket"}));
 	else if (charsRead == 0)
 		throw(EndConnectionException({}));
-	else if (this->_tmpHead.size() + charsRead > MAX_HEADER_SIZE)
-		throw(RequestException({"headers too large"}, 431));
-	else if (charsRead == 0)
-		_checkTimeout();
-	else
+	_checkTimeout();
+	this->_tmpHead += std::string(buffer, buffer + charsRead);
+	endReq = this->_tmpHead.find(HTTP_TERM);
+	if (endReq != std::string::npos)
 	{
-		this->_tmpHead += std::string(buffer, buffer + charsRead);
-		if (this->_tmpHead.find(HTTP_TERM) != std::string::npos)	// look for terminator in request
-			this->_state = HTTP_REQ_HEAD_PARSING;
-		else
-			_resetTimeout();
+		this->_tmpHead = this->_tmpHead.substr(0, endReq);
+		if (this->_tmpHead.size() > HTTP_MAX_HEADER_SIZE)
+			throw(RequestException({"head too large"}, 431));
+		this->_state = HTTP_REQ_HEAD_PARSING;
 	}
+	else if (this->_tmpHead.size() > HTTP_MAX_HEADER_SIZE)
+		throw(RequestException({"head too large"}, 431));
 }
 
 void	HTTPrequest::_readBody( void )
@@ -365,15 +362,11 @@ void	HTTPrequest::_readBody( void )
 	if (charsRead < 0 )
 		throw(ServerException({"unavailable socket"}));
 	else if (charsRead == 0)
-		_checkTimeout();
-	else
-	{
-		this->_tmpBody += std::string(buffer, buffer + charsRead);
-		if (hasBodyToRead() == false)
-			this->_state = HTTP_REQ_DONE;
-		else
-			_resetTimeout();
-	}
+		throw(EndConnectionException({}));
+	_checkTimeout();
+	this->_tmpBody += std::string(buffer, buffer + charsRead);
+	if (hasBodyToRead() == false)
+		this->_state = HTTP_REQ_DONE;
 }
 
 void	HTTPrequest::_updateTypeAndState( void )

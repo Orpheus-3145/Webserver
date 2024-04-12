@@ -67,7 +67,7 @@ bool	HTTPstruct::isDelete( void ) const noexcept
 
 bool	HTTPstruct::isCGI( void ) const noexcept
 {
-	return (this->_type == HTTP_CGI_STATIC || this->_type == HTTP_CGI_FILE_UPL);
+	return (isFastCGI() || this->_type == HTTP_CGI_FILE_UPL);
 }
 
 void	HTTPstruct::_setHeaders( std::string const& headers )

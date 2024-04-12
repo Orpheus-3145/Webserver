@@ -27,23 +27,23 @@ using namespace std::chrono;
 
 enum fdType
 {
-    LISTENER,
-    CLIENT_CONNECTION,
-    CGI_REQUEST_PIPE_WRITE_END,
-    CGI_RESPONSE_PIPE_READ_END,
-    STATIC_FILE
+    LISTENER,					// fd linked to socket listener
+    CLIENT_CONNECTION,			// fd linked to socket connection
+    CGI_REQUEST_PIPE_WRITE_END,	// fd of pipe to write req. body to CGI
+    CGI_RESPONSE_PIPE_READ_END,	// fd of pipe to write CGI response into HTTP response
+    STATIC_FILE					// fd of a static file (GET reqs)
 };
 
 enum fdState
 {
-	WAITING_FOR_CONNECTION,			// LISTENER (read)
-	READ_REQ_HEADER,				// CLIENT_CONNECTION (read)
-	READ_STATIC_FILE,				// STATIC_FILE (read)
-	READ_REQ_BODY,					// CLIENT_CONNECTION (read)
-	WAIT_FOR_CGI,					// CLIENT_CONNECTION (no action)
-	READ_CGI_RESPONSE,				// CGI_RESPONSE_PIPE (read)
-	WRITE_TO_CLIENT,				// CLIENT_CONNECTION (write)
-	WRITE_TO_CGI					// CGI_REQUEST_PIPE (write)
+	WAITING_FOR_CONNECTION,	// LISTENER (read)
+	READ_REQ_HEADER,		// CLIENT_CONNECTION (read)
+	READ_STATIC_FILE,		// STATIC_FILE (read)
+	READ_REQ_BODY,			// CLIENT_CONNECTION (read)
+	WAIT_FOR_CGI,			// CLIENT_CONNECTION (no action)
+	READ_CGI_RESPONSE,		// CGI_RESPONSE_PIPE (read)
+	WRITE_TO_CLIENT,		// CLIENT_CONNECTION (write)
+	WRITE_TO_CGI			// CGI_REQUEST_PIPE (write)
 };
 
 typedef struct PollItem
@@ -69,7 +69,7 @@ class WebServer
 		std::unordered_map<int, t_PollItem*>	_pollitems;
 		std::unordered_map<int, HTTPrequest*> 	_requests;
 		std::unordered_map<int, HTTPresponse*> 	_responses;
-		std::unordered_map<int, CGI*> 			_cgi;	// NOTE: the key is the client socket fd, not any of the cgi-pipes
+		std::unordered_map<int, CGI*> 			_cgi;
 		std::vector<int>						_emptyConns;
 
 		void		_listenTo( std::string const&, std::string const& );
@@ -86,12 +86,12 @@ class WebServer
 		void	_resetTimeout( int );
 		void	_checkTimeout( int );
 
-		void	handleNewConnections( int ); // keep - DONE
-		void	readRequestHeaders( int ); // keep / rework
-		void	readStaticFiles( int ); // keep / rework
-		void	readRequestBody( int );
-		void	readCGIResponses( int ); // keep / rework
-		void	writeToCGI( int item );
-		void	writeToClients( int );
-		void	redirectToErrorPage( int, int ) noexcept;
+		void	_handleNewConnections( int );
+		void	_readRequestHeaders( int );
+		void	_readStaticFiles( int );
+		void	_readRequestBody( int );
+		void	_readCGIResponses( int );
+		void	_writeToCGI( int );
+		void	_writeToClients( int );
+		void	_redirectToErrorPage( int, int ) noexcept;
 };

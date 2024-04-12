@@ -100,7 +100,7 @@ void	WebServer::run( void )
 			}
 			catch (const HTTPexception& e) {
 				std::cout << C_RED << e.what()  << C_RESET << '\n';
-				redirectToErrorPage(pollfdItem.fd, e.getStatus());
+				_redirectToErrorPage(pollfdItem.fd, e.getStatus());
 			}
 			catch (const ServerException& e) {
 				std::cerr << C_RED << e.what() << C_RESET << '\n';
@@ -171,23 +171,23 @@ void	WebServer::_readData( int readFd )	// POLLIN
 	{
 		case WAITING_FOR_CONNECTION:
 			std::cout << C_GREEN << "NEW_CONNECTION - " << readFd << C_RESET << std::endl;
-			handleNewConnections(readFd);
+			_handleNewConnections(readFd);
 			break;
 
 		case READ_REQ_HEADER:
 			std::cout << C_GREEN << "READ_REQ_HEADER - " << readFd << C_RESET << std::endl;
-			readRequestHeaders(readFd);
+			_readRequestHeaders(readFd);
 			_resetTimeout(readFd);
 			break;
 
 		case READ_STATIC_FILE:
 			std::cout << C_GREEN << "READ_STATIC_FILE - " << readFd << C_RESET << std::endl;
-			readStaticFiles(readFd);
+			_readStaticFiles(readFd);
 			break;
 
 		case READ_REQ_BODY:
 			std::cout << C_GREEN << "READ_REQ_BODY - " << readFd << C_RESET << std::endl;
-			readRequestBody(readFd);
+			_readRequestBody(readFd);
 			break;
 
 		case WAIT_FOR_CGI:
@@ -196,7 +196,7 @@ void	WebServer::_readData( int readFd )	// POLLIN
 
 		case READ_CGI_RESPONSE:
 			std::cout << C_GREEN << "READ_CGI_RESPONSE " << readFd << C_RESET << std::endl;
-			readCGIResponses(readFd);
+			_readCGIResponses(readFd);
 			break;
 
 		case WRITE_TO_CLIENT:
@@ -215,12 +215,12 @@ void	WebServer::_writeData( int writeFd )	// POLLOUT
 	{
 		case WRITE_TO_CGI:
 			std::cout << C_GREEN << "WRITE_TO_CGI - " << writeFd << C_RESET << std::endl;
-			writeToCGI(writeFd);
+			_writeToCGI(writeFd);
 			break;
 
 		case WRITE_TO_CLIENT:
 			std::cout << C_GREEN << "WRITE_TO_CLIENT - " << writeFd << C_RESET << std::endl;
-			writeToClients(writeFd);
+			_writeToClients(writeFd);
 			break;
 
 		default:
@@ -377,7 +377,7 @@ void	WebServer::_checkTimeout( int fd )
 		throw(EndConnectionException());
 }
 
-void	WebServer::handleNewConnections( int listenerFd )
+void	WebServer::_handleNewConnections( int listenerFd )
 {
 	struct sockaddr_storage client;
 	unsigned int 			sizeAddr = sizeof(client);
@@ -400,7 +400,7 @@ void	WebServer::handleNewConnections( int listenerFd )
 	}
 }
 
-void	WebServer::readRequestHeaders( int clientSocket )
+void	WebServer::_readRequestHeaders( int clientSocket )
 {
 	HTTPrequest 	*request = nullptr;
 	HTTPresponse	*response = nullptr;
@@ -446,7 +446,7 @@ void	WebServer::readRequestHeaders( int clientSocket )
 	}
 }
 
-void	WebServer::readStaticFiles( int staticFileFd )
+void	WebServer::_readStaticFiles( int staticFileFd )
 {
 	int 			socket = _getSocketFromFd(staticFileFd);
 	HTTPresponse	*response = this->_responses.at(socket);
@@ -461,14 +461,14 @@ void	WebServer::readStaticFiles( int staticFileFd )
 	}
 }
 
-void	WebServer::readRequestBody( int clientSocket )
+void	WebServer::_readRequestBody( int clientSocket )
 {
 	HTTPrequest *request = this->_requests.at(clientSocket);
 	if (request->getTmpBody() == "")
 		request->parseBody();
 }
 
-void	WebServer::writeToCGI( int cgiPipe )
+void	WebServer::_writeToCGI( int cgiPipe )
 {
 	int socket = _getSocketFromFd(cgiPipe);
 	HTTPrequest *request = this->_requests.at(socket);
@@ -491,7 +491,7 @@ void	WebServer::writeToCGI( int cgiPipe )
 	}
 }
 
-void	WebServer::readCGIResponses( int cgiPipe )
+void	WebServer::_readCGIResponses( int cgiPipe )
 {
 	int 	socket = _getSocketFromFd(cgiPipe);
 	CGI		*cgi = this->_cgi.at(socket);
@@ -514,7 +514,7 @@ void	WebServer::readCGIResponses( int cgiPipe )
 
 }
 
-void	WebServer::writeToClients( int clientSocket )
+void	WebServer::_writeToClients( int clientSocket )
 {
 	HTTPrequest 	*request = this->_requests.at(clientSocket);
 	HTTPresponse 	*response = this->_responses.at(clientSocket);
@@ -545,7 +545,7 @@ void	WebServer::writeToClients( int clientSocket )
 	}
 }
 
-void	WebServer::redirectToErrorPage( int genericFd, int statusCode ) noexcept
+void	WebServer::_redirectToErrorPage( int genericFd, int statusCode ) noexcept
 {
 	int				clientSocket = _getSocketFromFd(genericFd);
 	HTTPrequest		*request = this->_requests[clientSocket];
@@ -581,7 +581,7 @@ void	WebServer::redirectToErrorPage( int genericFd, int statusCode ) noexcept
 				this->_pollitems[clientSocket]->pollState = WRITE_TO_CLIENT;
 			}
 			else
-				redirectToErrorPage(clientSocket, 500);
+				_redirectToErrorPage(clientSocket, 500);
 			return ;
 		}
 	}
