@@ -106,10 +106,10 @@ void	WebServer::run( void )
 				std::cerr << C_RED << e.what() << C_RESET << '\n';
 				_dropConn(pollfdItem.fd);
 			}
-			catch (const std::out_of_range& e) {
-				std::cerr << C_RED << "resource not found"  << C_RESET << '\n';
-				_dropConn(pollfdItem.fd);
-			}
+			// catch (const std::out_of_range& e) {
+			// 	std::cerr << C_RED << "resource not found"  << C_RESET << '\n';
+			// 	_dropConn(pollfdItem.fd);
+			// }
 			catch (const EndConnectionException& e) {
 				_dropConn(pollfdItem.fd);
 			}
@@ -214,7 +214,7 @@ void	WebServer::_writeData( int writeFd )	// POLLOUT
 	switch (this->_pollitems[writeFd]->pollState)
 	{
 		case WRITE_TO_CGI:
-			std::cout << C_GREEN << "WRITE_TO_CGI - " << writeFd << C_RESET << std::endl;
+			// std::cout << C_GREEN << "WRITE_TO_CGI - " << writeFd << C_RESET << std::endl;
 			_writeToCGI(writeFd);
 			break;
 
