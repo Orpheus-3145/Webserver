@@ -78,7 +78,7 @@ class WebServer
 		void		_addConn( int , fdType , fdState, std::string const& ip="", std::string const& port="" );
 		void		_dropConn( int ) noexcept;
 		void		_clearEmptyConns( void ) noexcept;
-		void		_clearStructs( int, bool ) noexcept;
+		void		_clearStructs( int ) noexcept;
 		int			_getSocketFromFd( int );
 		t_serv_list	_getServersFromIP( std::string const&, std::string const& ) const noexcept;
 		path_t		_getDefErrorPage( int ) const ;
@@ -86,12 +86,12 @@ class WebServer
 		void	_resetTimeout( int );
 		void	_checkTimeout( int );
 
-		void	_handleNewConnections( int );
-		void	_readRequestHeaders( int );
-		void	_readStaticFiles( int );
+		void	_handleNewConnection( int );
+		void	_readRequestHead( int );
+		void	_readStaticFile( int );
 		void	_readRequestBody( int );
-		void	_readCGIResponses( int );
+		void	_readCGIresponse( int );
 		void	_writeToCGI( int );
-		void	_writeToClients( int );
+		void	_writeToClient( int );
 		void	_redirectToErrorPage( int, int ) noexcept;
 };

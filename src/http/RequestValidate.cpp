@@ -296,6 +296,8 @@ void	RequestValidate::_handleIndex( void )
 	Parameters const	indexParam = *_validParams;
 	path_t				indexFilePath;
 
+	if (this->_requestMethod != HTTP_GET)	//index but method is not GET
+		return (_setStatusCode(400));
 	for (auto indexFile : indexParam.getIndex())
 	{
 		if (indexFile.is_absolute())
@@ -311,7 +313,7 @@ void	RequestValidate::_handleIndex( void )
 				indexFilePath /= indexFile;
 			indexFilePath = std::filesystem::weakly_canonical(indexFilePath);
 		}
-		solvePath(HTTP_GET, indexFilePath, this->_handlerServer->getPrimaryName());
+		solvePath(this->_requestMethod, indexFilePath, this->_handlerServer->getPrimaryName());
 		if (solvePathFailed() == false)
 			return ;
 	}

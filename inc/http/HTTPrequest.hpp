@@ -83,7 +83,7 @@ class HTTPrequest : public HTTPstruct
 		void		_setBody( std::string const& ) override;
 		void		_readHead( void );
 		void		_readBody( void );
-		void		_updateTypeAndState( void );
+		void		_setTypeAndState( void ) noexcept;
 		void		_checkMaxBodySize( void );
 		std::string	_encodeSpaces( std::string const&) const noexcept;
 		std::string	_decodeSpaces( std::string const&) const noexcept;

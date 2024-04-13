@@ -24,7 +24,7 @@ void	HTTPrequest::parseHead( void )
 		this->_validator.solvePath(this->_method, this->_url.path, getHost());
 		this->_statusCode = this->_validator.getStatusCode();
 		this->_root = this->_validator.getRoot();
-		_updateTypeAndState();
+		_setTypeAndState();
 		if (this->_validator.solvePathFailed() == true)
 			throw(RequestException({"validation of config file failed"}, this->_validator.getStatusCode()));
 		_checkMaxBodySize();
@@ -95,7 +95,7 @@ void	HTTPrequest::updateErrorCode( int errorCode )
 {
 	this->_statusCode = errorCode;
 	this->_validator.solveErrorPath( errorCode );
-	_updateTypeAndState();
+	_setTypeAndState();
 	if (this->_validator.solvePathFailed() == true)
 	{
 		this->_statusCode = this->_validator.getStatusCode();
@@ -273,20 +273,20 @@ void	HTTPrequest::_setHeaders( std::string const& strHeaders )
 		_setHostPort(this->_headers.find(HTTP_HEADER_HOST)->second);
 	else if (this->_headers.find(HTTP_HEADER_HOST)->second.find(this->_url.host) == std::string::npos)
 		throw(RequestException({"hosts do not match"}, 412));
+	if ((this->_method == HTTP_GET) or (this->_method == HTTP_DELETE))
+		return ;
+
+	if (this->_headers.count(HTTP_HEADER_CONT_TYPE) == 0)
+		throw(RequestException({HTTP_HEADER_CONT_TYPE, "required"}, 400));
 	if (this->_headers.count(HTTP_HEADER_CONT_LEN) == 0)
 	{
-		if ((this->_headers.count(HTTP_HEADER_TRANS_ENCODING) == 0) and
-			(this->_headers.count(HTTP_HEADER_CONT_TYPE) == 0))		// no body
-			return ;
-		if (this->_headers.count(HTTP_HEADER_CONT_TYPE) == 0)
-			throw(RequestException({HTTP_HEADER_CONT_TYPE, "required"}, 400));
-		else if (this->_headers.find(HTTP_HEADER_TRANS_ENCODING)->second != "chunked")
+		if (this->_headers.count(HTTP_HEADER_TRANS_ENCODING) == 0)
 			throw(RequestException({HTTP_HEADER_CONT_LEN, "required"}, 411));
+		else if (this->_headers.find(HTTP_HEADER_TRANS_ENCODING)->second != "chunked")
+			throw(RequestException({HTTP_HEADER_TRANS_ENCODING, "required"}, 400));
 	}
 	else
 	{
-		if (this->_headers.count(HTTP_HEADER_CONT_TYPE) == 0)
-			throw(RequestException({HTTP_HEADER_CONT_TYPE, "required"}, 400));
 		try {
 			this->_contentLength = std::stoull(this->_headers.find(HTTP_HEADER_CONT_LEN)->second);
 		}
@@ -362,7 +362,7 @@ void	HTTPrequest::_readBody( void )
 		this->_state = HTTP_REQ_DONE;
 }
 
-void	HTTPrequest::_updateTypeAndState( void )
+void	HTTPrequest::_setTypeAndState( void ) noexcept
 {
 	if (this->_statusCode >= 300)
 	{
@@ -374,8 +374,6 @@ void	HTTPrequest::_updateTypeAndState( void )
 	}
 	else if (this->_headers.count(HTTP_HEADER_CONT_TYPE) > 0)		// request with body
 	{
-		if (this->_method != HTTP_POST)
-			throw(RequestException({"request has body but method is not POST:", getMethod()}, 400));
 		this->_type = HTTP_CGI_FILE_UPL;
 		if (hasBodyToRead())
 			this->_state = HTTP_REQ_BODY_READING;
@@ -392,8 +390,7 @@ void	HTTPrequest::_updateTypeAndState( void )
 			this->_type = HTTP_FILE_DEL;
 		else if (this->_method == HTTP_GET)
 			this->_type = HTTP_STATIC;
-		else
-			throw(RequestException({"request is POST but no body is attached"}, 400));
+		
 		this->_state = HTTP_REQ_DONE;
 	}
 }
@@ -467,7 +464,7 @@ void	HTTPrequest::_setURL( std::string const& strURL )
 	std::string	tmpURL = _decodeSpaces(strURL);
 
 	delimiter = tmpURL.find(":");
-	if (delimiter != std::string::npos)
+	if (delimiter != std::string::npos)		// there is the scheme (always http)
 	{
 		_setScheme(tmpURL.substr(0, delimiter));
 		tmpURL = tmpURL.substr(delimiter + 1);
@@ -475,14 +472,14 @@ void	HTTPrequest::_setURL( std::string const& strURL )
 	else
 		_setScheme(HTTP_DEF_SCHEME);
 	delimiter = tmpURL.find("//");
-	if (delimiter != std::string::npos)
+	if (delimiter != std::string::npos)		// there is the host (and eventually port)
 	{
 		if (delimiter != 0)
-			throw(RequestException({"bad format URL:", tmpURL}, 400));
+			throw(RequestException({"bad format URL:", strURL}, 400));
 		tmpURL = tmpURL.substr(2);
 		delimiter = tmpURL.find("/");
-		if (delimiter == std::string::npos)
-			throw(RequestException({"bad request:", strURL}, 400));
+		if ((delimiter == 0) or (delimiter == std::string::npos))
+			throw(RequestException({"bad format URL:", strURL}, 400));
 		else if (delimiter == 0)
 			_setHostPort(HTTP_DEF_HOST);
 		else
