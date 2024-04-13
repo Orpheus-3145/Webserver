@@ -50,8 +50,10 @@ typedef struct PollItem
 {
 	fdType  					pollType;
     fdState 					pollState;
-	std::string					IPaddr;
-	std::string					port;
+	std::string					servIP;
+	std::string					servPort;
+	std::string					cliIP;
+	std::string					cliPort;
 	steady_clock::time_point	lastActivity;
 } t_PollItem;
 
@@ -75,7 +77,13 @@ class WebServer
 		void		_listenTo( std::string const&, std::string const& );
 		void		_readData( int );
 		void		_writeData( int );
-		void		_addConn( int , fdType , fdState, std::string const& ip="", std::string const& port="" );
+		void		_addConn( int , 
+							fdType , 
+							fdState, 
+							std::string const& servIP="", 
+							std::string const& servPort="", 
+							std::string const& cliIP="", 
+							std::string const& cliPort="" );
 		void		_dropConn( int ) noexcept;
 		void		_clearEmptyConns( void ) noexcept;
 		void		_clearStructs( int ) noexcept;

@@ -90,10 +90,14 @@ bool	CGI::waitCGIproc() const
 	int waitStatus = waitpid(this->_pid, &cgiExitCode, WNOHANG);
 	if (waitStatus == -1)
 		throw(CGIexception({"error while waiting CGI process, pid", std::to_string(this->_pid)}, 500));
-	else if (cgiExitCode != EXIT_SUCCESS)
-		throw(CGIexception({"error while running CGI"}, 500));
+	else if (waitStatus == 0)		// if it's 0 the child is not done yet
+		return (false);
 	else
-		return (waitStatus > 0);	// if it's 0 the child is not done yet
+	{
+		if (cgiExitCode != EXIT_SUCCESS)
+			throw(CGIexception({"error while running CGI"}, 500));
+		return (true);
+	}
 }
 
 int CGI::getRequestSocket() const {

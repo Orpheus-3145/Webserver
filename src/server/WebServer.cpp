@@ -195,7 +195,7 @@ void	WebServer::_writeData( int writeFd )
 	}
 }
 
-void	WebServer::_addConn( int newSocket , fdType typePollItem, fdState statePollItem, std::string const& ip, std::string const& port )
+void	WebServer::_addConn( int newSocket , fdType typePollItem, fdState statePollItem, std::string const& servIP, std::string const& servPort, std::string const& cliIP, std::string const& cliPort )
 {
 	t_PollItem *newPollitem = nullptr;
 
@@ -205,8 +205,10 @@ void	WebServer::_addConn( int newSocket , fdType typePollItem, fdState statePoll
 	newPollitem = new PollItem;
 	newPollitem->pollType = typePollItem;
 	newPollitem->pollState = statePollItem;
-	newPollitem->IPaddr = ip;
-	newPollitem->port = port;
+	newPollitem->servIP = servIP;
+	newPollitem->servPort = servPort;
+	newPollitem->cliIP = cliIP;
+	newPollitem->cliPort = cliPort;
 	this->_pollitems[newSocket] = newPollitem;
 	_resetTimeout(newSocket);
 }
@@ -235,7 +237,7 @@ void	WebServer::_clearEmptyConns( void ) noexcept
 			}
 		}
 		if (this->_pollitems[fdToDrop]->pollType == CLIENT_CONNECTION)
-			std::cout << C_GREEN << "CLOSED CONNECTION - " << fdToDrop << C_RESET << std::endl;
+			std::cout << C_GREEN << "closed connection with client: " << this->_pollitems[fdToDrop]->cliIP << ":" << this->_pollitems[fdToDrop]->cliPort << C_RESET << std::endl;
 		delete this->_pollitems[fdToDrop];
 		this->_pollitems.erase(fdToDrop);
 		_clearStructs(fdToDrop);
@@ -346,21 +348,29 @@ void	WebServer::_handleNewConnection( int listenerFd )
 	struct sockaddr_storage client;
 	unsigned int 			sizeAddr = sizeof(client);
 	int 					connFd = -1;
-	std::string				ip, port;
+	std::string				cliIP, cliPort;
+	char 					ip4[INET_ADDRSTRLEN], ip6[INET6_ADDRSTRLEN];
 
-	ip = this->_pollitems[listenerFd]->IPaddr;
 	connFd = accept(listenerFd, (struct sockaddr *) &client, &sizeAddr);
 	if (client.ss_family == AF_INET)
-		port = std::to_string(ntohs(((struct sockaddr_in*) &client)->sin_port));
+	{
+		inet_ntop(AF_INET, &(((struct sockaddr_in*) &client)->sin_addr), ip4, INET_ADDRSTRLEN);
+		cliIP = std::string(ip4);
+		cliPort = std::to_string(ntohs(((struct sockaddr_in*) &client)->sin_port));
+	}
 	else if (client.ss_family == AF_INET6)
-		port = std::to_string(ntohs(((struct sockaddr_in6*) &client)->sin6_port));
+	{
+		inet_ntop(AF_INET6, &(((struct sockaddr_in6*) &client)->sin6_addr), ip6, INET6_ADDRSTRLEN);
+		cliIP = std::string(ip6);
+		cliPort = std::to_string(ntohs(((struct sockaddr_in6*) &client)->sin6_port));
+	}
 	if (connFd == -1)
-		std::cerr << C_RED  << "connection with: " << ip << ":" << port << " failed" << C_RESET << '\n';
+		std::cerr << C_RED  << "connection with client: " << cliIP << ":" << cliPort << " failed" << C_RESET << '\n';
 	else
 	{
 		fcntl(connFd, F_SETFL, O_NONBLOCK);
-		this->_addConn(connFd, CLIENT_CONNECTION, READ_REQ_HEADER, this->_pollitems[listenerFd]->IPaddr, this->_pollitems[listenerFd]->port);
-		std::cout << C_GREEN << "connected to " << ip << ":" << port << C_RESET << '\n';
+		this->_addConn(connFd, CLIENT_CONNECTION, READ_REQ_HEADER, this->_pollitems[listenerFd]->servIP, this->_pollitems[listenerFd]->servPort, cliIP, cliPort);
+		std::cout << C_GREEN << "connected to client: " << cliIP << ":" << cliPort << C_RESET << '\n';
 	}
 }
 
@@ -372,7 +382,7 @@ void	WebServer::_readRequestHead( int clientSocket )
 	fdState			nextStatus;
 
 	if (this->_requests[clientSocket] == nullptr)
-		this->_requests[clientSocket] = new HTTPrequest(clientSocket, _getServersFromIP(this->_pollitems[clientSocket]->IPaddr, this->_pollitems[clientSocket]->port));
+		this->_requests[clientSocket] = new HTTPrequest(clientSocket, _getServersFromIP(this->_pollitems[clientSocket]->servIP, this->_pollitems[clientSocket]->servPort));
 	request = this->_requests[clientSocket];
 	request->parseHead();
 	if (request->isDoneReadingHead())
@@ -384,6 +394,7 @@ void	WebServer::_readRequestHead( int clientSocket )
 		if (request->isCGI())		// GET cgi, POST
 		{
 			cgi = new CGI(*request);
+			this->_addConn(cgi->getResponsePipe()[0], CGI_RESPONSE_PIPE_READ_END, READ_CGI_RESPONSE);
 			if (request->isFastCGI() == true)
 			{
 				close(cgi->getUploadPipe()[0]);
@@ -391,7 +402,6 @@ void	WebServer::_readRequestHead( int clientSocket )
 			}
 			else if (request->isFileUpload())
 				this->_addConn(cgi->getUploadPipe()[1], CGI_REQUEST_PIPE_WRITE_END, WRITE_TO_CGI);
-			this->_addConn(cgi->getResponsePipe()[0], CGI_RESPONSE_PIPE_READ_END, READ_CGI_RESPONSE);
 			this->_cgi[clientSocket] = cgi;
 			cgi->run();
 		}
@@ -551,6 +561,6 @@ void	WebServer::_redirectToErrorPage( int genericFd, int statusCode ) noexcept
 	}
 	response->errorReset(statusCode, false);
 	response->setTargetFile(HTMLerrPage);
-	_addConn(response->getHTMLfd(), STATIC_FILE, READ_STATIC_FILE, "", "");
+	_addConn(response->getHTMLfd(), STATIC_FILE, READ_STATIC_FILE);
 	this->_pollitems[clientSocket]->pollState = READ_STATIC_FILE;
 }
